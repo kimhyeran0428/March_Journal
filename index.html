@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3월의 기록: 내 삶의 큐레이터</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- html2canvas -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #fdf8f5; /* Soft Spring Background */
+            color: #4a3b32;
+        }
+        
+        .book-font {
+            font-family: 'Nanum Myeongjo', serif;
+        }
+
+        /* Scrollbar Styling */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        textarea::-webkit-scrollbar { width: 8px; }
+        textarea::-webkit-scrollbar-track { background: #fdf8f5; }
+        textarea::-webkit-scrollbar-thumb { background: #d4a5a5; border-radius: 4px; }
+
+        /* Animation */
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(10px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+        .toast-show { animation: fadeInOut 3s forwards; }
+
+        /* Overlays */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: rgba(60, 40, 40, 0.6);
+            z-index: 10000;
+            justify-content: center; align-items: center;
+        }
+        
+        .modal-content {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 1rem;
+            width: 90%; max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border: 1px solid #f1e4e4;
+        }
+
+        /* Gallery */
+        .image-gallery {
+            display: flex; gap: 10px; overflow-x: auto; padding: 10px 4px; margin-bottom: 12px; scroll-behavior: smooth;
+        }
+        .image-item {
+            position: relative; flex-shrink: 0; width: 150px; height: 150px;
+            border-radius: 8px; overflow: hidden; border: 1px solid #e2d1d1;
+            background-color: #fff;
+        }
+        .image-item img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .remove-image-btn {
+            position: absolute; top: 6px; right: 6px;
+            background: rgba(150, 80, 80, 0.9);
+            color: white; border-radius: 50%; width: 28px; height: 28px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            z-index: 50; border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+        .remove-image-btn:hover { transform: scale(1.1); background: rgba(200, 50, 50, 0.9); }
+        .remove-image-btn svg { pointer-events: none; }
+
+        /* Share Template */
+        #share-card-template {
+            position: fixed; left: -9999px; top: 0; width: 600px; min-height: 800px; height: auto;
+            background-color: #fffaf8; padding: 50px 40px; box-sizing: border-box;
+            border: 1px solid #eadddd; font-family: 'Nanum Myeongjo', serif;
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+        }
+
+        #manual-copy-area {
+            width: 100%; height: 200px; padding: 15px; border: 1px solid #eadddd;
+            border-radius: 8px; margin-bottom: 1rem; font-size: 14px;
+            overflow-y: auto; text-align: left; background-color: #fff;
+            white-space: normal; word-break: break-word;
+        }
+        #manual-copy-area img { max-width: 100px; height: auto; }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4 selection:bg-rose-100">
+
+    <!-- Settings Overlay -->
+    <div id="settings-overlay" class="overlay">
+        <div class="modal-content text-center">
+            <h2 class="text-xl font-bold book-font text-rose-900 mb-6">데이터 관리 (3월)</h2>
+            <div class="space-y-3">
+                <button onclick="backupData()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-900 py-3 px-4 rounded-lg flex items-center justify-center gap-3 transition border border-rose-200">
+                    <i data-lucide="download-cloud" class="w-5 h-5"></i>
+                    <div class="text-left">
+                        <div class="font-bold text-sm">파일로 백업하기</div>
+                        <div class="text-xs text-stone-500">3월의 기록을 저장합니다</div>
+                    </div>
+                </button>
+                <button onclick="document.getElementById('restore-input').click()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-900 py-3 px-4 rounded-lg flex items-center justify-center gap-3 transition border border-rose-200">
+                    <i data-lucide="upload-cloud" class="w-5 h-5"></i>
+                    <div class="text-left">
+                        <div class="font-bold text-sm">데이터 복구하기</div>
+                        <div class="text-xs text-stone-500">백업 파일을 불러옵니다</div>
+                    </div>
+                </button>
+                <input type="file" id="restore-input" class="hidden" accept=".json" onchange="restoreData(event)">
+                <hr class="border-rose-200 my-4">
+                <button onclick="resetData()" class="w-full text-red-400 hover:text-red-600 py-2 text-sm flex items-center justify-center gap-2 transition">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i> 초기화 (3월 데이터 삭제)
+                </button>
+            </div>
+            <button onclick="closeOverlay('settings-overlay')" class="mt-6 w-full bg-stone-700 text-white py-2 rounded-lg hover:bg-stone-800 transition">닫기</button>
+        </div>
+    </div>
+
+    <!-- Export Overlay -->
+    <div id="export-overlay" class="overlay">
+        <div class="modal-content text-center w-full max-w-lg">
+            <div id="export-status-container">
+                <div class="mb-4 text-stone-600 flex justify-center"><div id="status-icon"></div></div>
+                <h2 id="status-title" class="text-2xl font-bold book-font text-stone-800 mb-2">복사 준비 완료</h2>
+                <p id="status-message" class="text-stone-600 mb-4 text-sm leading-relaxed">
+                    아래 영역이 선택되었나요?<br><strong>Ctrl + C</strong> 를 눌러 복사하세요.
+                </p>
+                <div id="manual-copy-area" contenteditable="true" onclick="selectAllManual()"></div>
+                <div class="flex gap-2 justify-center mt-4">
+                    <button onclick="openGoogleDocs()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2">
+                        <i data-lucide="external-link" class="w-5 h-5"></i> 구글 문서 열기
+                    </button>
+                    <button onclick="copyToClipboardManual()" class="bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold py-3 px-4 rounded-lg transition">재시도</button>
+                </div>
+            </div>
+            <button onclick="closeOverlay('export-overlay')" class="mt-4 text-sm text-stone-400 hover:text-stone-600 underline">닫기</button>
+        </div>
+    </div>
+
+    <!-- Share Overlay -->
+    <div id="share-overlay" class="overlay">
+        <div class="modal-content relative p-6 w-full max-w-sm">
+            <button onclick="closeOverlay('share-overlay')" class="absolute top-4 right-4 text-stone-400 hover:text-stone-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <h2 class="text-xl font-bold book-font text-stone-800 mb-4">3월의 기록 공유</h2>
+            <div id="share-preview-area" class="w-full bg-stone-100 rounded-lg mb-6 overflow-hidden flex items-center justify-center min-h-[200px]">
+                <img id="generated-share-image" class="max-w-full h-auto shadow-md" alt="공유 이미지">
+            </div>
+            <button onclick="downloadShareImage()" class="w-full bg-stone-700 hover:bg-stone-800 text-white font-bold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2">
+                <i data-lucide="download" class="w-4 h-4"></i> 이미지 저장
+            </button>
+            <p class="text-xs text-stone-400 mt-2 text-center">저장된 이미지를 SNS에 공유해보세요</p>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="w-full max-w-3xl flex flex-wrap gap-2 justify-between items-center mb-6 z-10">
+        <div class="flex flex-col">
+            <h1 class="text-xl md:text-2xl font-bold book-font text-stone-800">3월의 기록</h1>
+            <p class="text-xs text-rose-600 mt-1 font-medium">내 삶의 큐레이터</p>
+        </div>
+        <div class="flex gap-2 items-center">
+            <button id="share-btn" onclick="shareCurrentCard()" class="flex items-center gap-2 bg-white border border-rose-200 hover:bg-rose-50 text-rose-900 px-3 py-2 rounded-lg shadow-sm transition text-sm font-medium">
+                <i data-lucide="share-2" class="w-4 h-4"></i> <span class="hidden sm:inline">공유</span>
+            </button>
+            <button id="btn-export" onclick="copyForGoogleDocs()" class="flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-3 py-2 rounded-lg shadow-sm transition text-sm font-medium">
+                <i data-lucide="file-text" class="w-4 h-4"></i> <span class="hidden sm:inline">내보내기</span>
+            </button>
+            <button onclick="openSettings()" class="flex items-center justify-center bg-stone-200 hover:bg-stone-300 text-stone-700 w-9 h-9 rounded-lg transition">
+                <i data-lucide="settings" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main App -->
+    <main id="app" class="w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden min-h-[600px] flex flex-col relative border border-rose-100 z-10">
+        
+        <!-- Header Image (CSS Gradient로 깨짐 없는 화사한 커버) -->
+        <div class="relative w-full h-48 bg-gradient-to-br from-rose-300 via-pink-200 to-rose-300 overflow-hidden flex flex-col items-center justify-center text-center shadow-inner">
+            <div class="absolute inset-0 bg-white/20"></div>
+            <div class="relative z-10">
+                <div class="text-sm font-bold tracking-widest mb-1 text-rose-800 opacity-80">REBOOT NOTE</div>
+                <h2 class="text-3xl font-bold book-font text-rose-950 mb-2">3월의 기록</h2>
+                <div class="w-10 h-0.5 bg-rose-400/50 my-2 mx-auto"></div>
+                <p class="text-sm font-medium text-rose-800">내 삶의 큐레이터</p>
+            </div>
+        </div>
+
+        <div id="loading" class="absolute inset-0 flex items-center justify-center bg-white z-50">
+            <div class="animate-pulse text-rose-400">페이지를 불러오는 중...</div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="w-full bg-[#fffaf8] border-b border-rose-100 py-3">
+            <div id="tab-container" class="flex flex-col gap-2"></div>
+        </div>
+
+        <!-- Top Bar -->
+        <div class="bg-[#fffaf8] px-6 py-4 border-b border-rose-50 flex justify-between items-center">
+            <div class="flex flex-col">
+                <span id="chapter-display" class="text-xs font-bold text-rose-500 uppercase tracking-widest mb-1">Chapter 1</span>
+                <div id="date-display" class="font-bold text-stone-700 text-lg"></div>
+            </div>
+            <div class="flex items-center gap-2">
+                <div id="save-toast" class="hidden text-xs text-rose-600 font-medium flex items-center gap-1 bg-rose-50 px-2 py-1 rounded border border-rose-200">
+                    <i data-lucide="check" class="w-3 h-3"></i> 저장 완료!
+                </div>
+                <div class="text-xs text-stone-400 font-mono tracking-widest" id="page-indicator">1 / 31</div>
+            </div>
+        </div>
+
+        <!-- Writing Area -->
+        <div class="flex-1 p-6 md:p-10 flex flex-col justify-center">
+            <div class="mb-8 text-center">
+                <h2 id="question-text" class="text-2xl md:text-3xl font-bold book-font leading-relaxed text-stone-800 break-keep"></h2>
+            </div>
+
+            <div class="w-full flex-1 relative flex flex-col">
+                <div id="image-gallery-container" class="hidden">
+                    <div id="image-list" class="image-gallery"></div>
+                </div>
+
+                <div class="relative w-full">
+                    <textarea id="answer-input" class="w-full h-64 p-6 bg-[#fffdfc] border border-rose-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-200 focus:bg-white resize-none text-stone-700 leading-8 book-font text-lg transition-colors pb-10" placeholder="일상을 특별한 전시처럼 관찰하며 기록해보세요..." maxlength="1000"></textarea>
+                    <div class="absolute bottom-4 right-4 text-xs text-stone-400 pointer-events-none"><span id="char-count">0</span>자</div>
+                </div>
+
+                <div class="flex justify-between items-center mt-3 px-1">
+                    <div>
+                        <input type="file" id="image-upload" accept="image/*" multiple class="hidden" onchange="handleImageUpload(event)">
+                        <button onclick="document.getElementById('image-upload').click()" class="flex items-center gap-1.5 px-3 py-1.5 text-stone-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors text-sm">
+                            <i data-lucide="camera" class="w-4 h-4"></i> <span>영감 수집하기(사진)</span>
+                        </button>
+                    </div>
+                    <button onclick="manualSave()" class="flex items-center gap-1.5 px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 text-sm rounded transition-colors duration-200 font-medium">
+                        <i data-lucide="save" class="w-4 h-4"></i> 기록 저장하기
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-rose-50 text-center">
+                <p class="text-sm text-stone-500 italic book-font" id="quote-text"></p>
+            </div>
+        </div>
+
+        <!-- Nav -->
+        <div class="bg-[#fffaf8] p-4 border-t border-rose-100 flex justify-between items-center">
+            <button onclick="prevPage()" id="btn-prev" class="flex items-center gap-2 px-4 py-2 text-stone-500 hover:text-rose-700 disabled:opacity-30 transition"><i data-lucide="chevron-left" class="w-5 h-5"></i> 이전</button>
+            <button onclick="nextPage()" id="btn-next" class="flex items-center gap-2 px-4 py-2 text-stone-500 hover:text-rose-700 disabled:opacity-30 transition">다음 <i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+        </div>
+    </main>
+
+    <footer class="mt-8 text-stone-400 text-xs text-center z-10"><p>작성된 내용은 브라우저에 자동 저장됩니다.</p></footer>
+
+    <!-- Hidden Share Template -->
+    <div id="share-card-template">
+        <div style="font-size: 14px; color: #d4a5a5; margin-bottom: 20px; letter-spacing: 2px; font-family: 'Noto Sans KR', sans-serif;" id="share-header">MARCH RECORD</div>
+        <div style="font-size: 20px; font-weight: bold; color: #5a4a42; margin-bottom: 5px;" id="share-date"></div>
+        <div style="width: 40px; height: 1px; background: #eadddd; margin: 15px auto;"></div>
+        <div style="font-size: 22px; font-weight: bold; color: #4a3b32; line-height: 1.4; margin-bottom: 30px; word-break: keep-all;" id="share-question"></div>
+        <div id="share-image-container" style="width: 100%; margin-bottom: 20px; display: none;">
+            <img id="share-image" src="" style="width: 100%; max-height: 350px; object-fit: cover; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        </div>
+        <div style="font-size: 16px; color: #6d5b53; line-height: 1.8; text-align: left; width: 100%; background: rgba(255,255,255,0.7); padding: 10px; border-radius: 4px; white-space: pre-wrap; word-break: keep-all;" id="share-content"></div>
+        <div style="margin-top: 40px; font-style: italic; color: #a89494; font-size: 12px;" id="share-quote"></div>
+    </div>
+
+    <script>
+        // 3월 질문 리스트 (31일) - 내 삶의 큐레이터 테마
+        const journalData = [
+            { chapter: "1. 시선 수집하기", date: "3/1(일)", question: "출/퇴근길(혹은 익숙한 길)에서 '오늘 처음 발견한 새로운 것'은 무엇인가요?", quote: "위대한 발견은 새로운 땅을 찾는 것이 아니라 새로운 눈을 갖는 것이다." },
+            { chapter: "1. 시선 수집하기", date: "3/2(월)", question: "최근 내 시선을 가장 오래 머물게 한 사물이나 풍경과 그 이유는?", quote: "오래 보아야 예쁘다. 너도 그렇다." },
+            { chapter: "1. 시선 수집하기", date: "3/3(화)", question: "평소 잘 안 듣던 장르의 음악을 한 곡 듣고, 그 느낌을 색깔로 표현한다면?", quote: "예술은 일상의 먼지를 영혼에서 씻어낸다." },
+            { chapter: "1. 시선 수집하기", date: "3/4(수)", question: "내 스마트폰 사진첩에서 무심코 찍었지만 가장 '나다운' 사진 한 장은?", quote: "가장 개인적인 것이 가장 창의적인 것이다." },
+            { chapter: "1. 시선 수집하기", date: "3/5(목)", question: "오늘 하루, 나를 피식 웃게 만든 타인의 사소한 말이나 행동은?", quote: "유머는 삶의 무게를 가볍게 해주는 마법이다." },
+            { chapter: "1. 시선 수집하기", date: "3/6(금)", question: "창밖을 3분 동안 아무 생각 없이 바라보며 발견한 세 가지는?", quote: "때로는 멈춰 서는 것이 가장 빠른 전진이다." },
+            { chapter: "1. 시선 수집하기", date: "3/7(토)", question: "최근에 '아름답다'고 느꼈던 아주 작고 사소한 순간은 언제인가요?", quote: "아름다움은 세상을 바라보는 당신의 눈 속에 있다." },
+            { chapter: "1. 시선 수집하기", date: "3/8(일)", question: "오늘 먹은 음식 중 미각을 가장 자극했던 맛을 한 문장으로 묘사해본다면?", quote: "미각은 기억을 깨우는 가장 강력한 열쇠다." },
+            { chapter: "1. 시선 수집하기", date: "3/9(월)", question: "내 주변 사람 한 명을 골라, 그의 특별한 장점을 전시회 작품 캡션처럼 적어본다면?", quote: "누군가를 있는 그대로 바라보는 것이 가장 큰 사랑이다." },
+            { chapter: "1. 시선 수집하기", date: "3/10(화)", question: "'당연하게 여겼던 것' 중 오늘따라 유독 낯설고 신기하게 느껴진 것이 있다면?", quote: "당연한 것을 의심할 때 진짜 배움이 시작된다." },
+
+            { chapter: "2. 취향 수집하기", date: "3/11(수)", question: "남들은 잘 모르지만 나만 아는, 나를 기분 좋게 하는 '냄새(향기)'는?", quote: "향기는 보이지 않는 나만의 옷이다." },
+            { chapter: "2. 취향 수집하기", date: "3/12(목)", question: "내 공간에서 '나를 가장 잘 설명하는 물건'을 미술관 큐레이터처럼 소개해보세요.", quote: "우리가 소유한 물건이 곧 우리의 이야기를 대신한다." },
+            { chapter: "2. 취향 수집하기", date: "3/13(금)", question: "돈을 쓸 때 전혀 아깝지 않은, 나의 '확실한 취향' 분야는 무엇인가요?", quote: "취향은 돈으로 살 수 없는 나만의 고유한 자본이다." },
+            { chapter: "2. 취향 수집하기", date: "3/14(토)", question: "최근 밑줄 친 문장이나 캡처해둔 명언이 있다면 무엇이고, 왜 저장했나요?", quote: "나를 흔든 문장 하나가 내일의 나를 만든다." },
+            { chapter: "2. 취향 수집하기", date: "3/15(일)", question: "내 삶에 BGM을 깐다면, 오늘 하루는 어떤 장르의 음악이 어울리나요?", quote: "음악은 감정을 담는 가장 아름다운 그릇이다." },
+            { chapter: "2. 취향 수집하기", date: "3/16(월)", question: "나만의 스트레스 해소법 중 남들에게 추천하고 싶은 가장 독특한 방법은?", quote: "나를 다루는 설명서는 나만이 쓸 수 있다." },
+            { chapter: "2. 취향 수집하기", date: "3/17(화)", question: "옷장 속에서 가장 오래된 옷은 무엇이며, 왜 아직 버리지 못했나요?", quote: "오래된 물건에는 지워지지 않는 시간이 배어 있다." },
+            { chapter: "2. 취향 수집하기", date: "3/18(수)", question: "시간 가는 줄 모르고 빠져들게 되는 유튜브 채널이나 콘텐츠의 공통점은?", quote: "나의 관심사가 곧 나의 미래다." },
+            { chapter: "2. 취향 수집하기", date: "3/19(목)", question: "누군가 조건 없이 10만 원을 주며 '당장 널 위해서만 쓰라'고 한다면 무엇을 할 건가요?", quote: "나를 대접하는 법을 알아야 타인도 대접할 수 있다." },
+            { chapter: "2. 취향 수집하기", date: "3/20(금)", question: "내가 가장 좋아하는 계절의 '특정 시간대'와 그 이유는?", quote: "행복은 찰나의 순간을 영원처럼 느끼는 것이다." },
+
+            { chapter: "3. 의미 수집하기", date: "3/21(토)", question: "나만의 사전: '성공'이라는 단어를 내 삶의 언어로 새롭게 정의한다면?", quote: "성공의 기준은 남이 아닌 내 안에서 찾아야 한다." },
+            { chapter: "3. 의미 수집하기", date: "3/22(일)", question: "나만의 사전: 나에게 '완벽한 휴식'이란 [         ] 다.", quote: "휴식은 게으름이 아니라 다음 여정을 위한 정비다." },
+            { chapter: "3. 의미 수집하기", date: "3/23(월)", question: "나만의 사전: '행복'을 가장 구체적인 장면으로 묘사해본다면?", quote: "행복은 크기가 아니라 빈도이다." },
+            { chapter: "3. 의미 수집하기", date: "3/24(화)", question: "만약 오늘 하루에 영화나 소설처럼 제목을 붙인다면 어떤 제목을 지어주고 싶나요?", quote: "내 삶의 작가는 바로 나 자신이다." },
+            { chapter: "3. 의미 수집하기", date: "3/25(수)", question: "올해의 4분의 1이 지났습니다. 지금까지 애쓴 나에게 주고 싶은 '특별한 트로피'의 이름은?", quote: "가장 위대한 승리는 자신과의 싸움에서 이기는 것이다." },
+            { chapter: "3. 의미 수집하기", date: "3/26(목)", question: "일상에서 내가 자주 쓰는 나만의 긍정적인 '말버릇' 하나는 무엇인가요?", quote: "내가 뱉은 말이 곧 나의 세계를 만든다." },
+            { chapter: "3. 의미 수집하기", date: "3/27(금)", question: "화나거나 우울한 감정이 찾아올 때, 그것을 가벼운 유머로 승화시키는 나만의 방법은?", quote: "상처를 웃음으로 넘기는 자가 진짜 강자다." },
+            { chapter: "3. 의미 수집하기", date: "3/28(토)", question: "내가 내 일상의 '기획자'라면, 다가올 4월에 꼭 열고 싶은 작고 재미있는 프로젝트는?", quote: "호기심은 삶을 이끄는 가장 즐거운 엔진이다." },
+            { chapter: "3. 의미 수집하기", date: "3/29(일)", question: "오늘 내린 아주 작은 결정 중, 나의 '가치관'이 가장 잘 반영된 것은 무엇인가요?", quote: "작은 선택들이 모여 거대한 운명을 이룬다." },
+            { chapter: "3. 의미 수집하기", date: "3/30(월)", question: "3월 한 달간 수집한 영감 중, 내 삶에 가장 오래 남을 것 같은 한 가지는?", quote: "기록하지 않은 영감은 연기처럼 사라진다." },
+            { chapter: "3. 의미 수집하기", date: "3/31(화)", question: "3월의 갤러리 문을 닫으며, 방명록에 '나를 위한 한 줄 평'을 남겨주세요.", quote: "당신의 삶은 그 자체로 이미 훌륭한 예술 작품이다." }
+        ];
+
+        // --- Data Handling ---
+        let currentIndex = 0;
+        const STORAGE_KEY = 'march_journal_entries';
+        const STORAGE_KEY_IMAGES = 'march_journal_images';
+        
+        let userEntries = {}; 
+        let userImages = {}; 
+
+        // --- Initialization ---
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) userEntries = JSON.parse(savedData);
+            const savedImages = localStorage.getItem(STORAGE_KEY_IMAGES);
+            if (savedImages) {
+                try {
+                    const parsed = JSON.parse(savedImages);
+                    for (const key in parsed) if (typeof parsed[key] === 'string') parsed[key] = [parsed[key]];
+                    userImages = parsed;
+                } catch (e) {}
+            }
+            generateTabs();
+            renderPage(currentIndex);
+            
+            // Failsafe Loading removal
+            setTimeout(() => {
+                const loader = document.getElementById('loading');
+                if(loader) loader.style.display = 'none';
+            }, 1000);
+        });
+
+        // --- Core Functions ---
+        const tabContainer = document.getElementById('tab-container');
+        
+        function generateTabs() {
+            tabContainer.innerHTML = '';
+            const row1 = document.createElement('div');
+            row1.className = 'flex overflow-x-auto no-scrollbar gap-2 px-4 pb-2 scroll-smooth';
+            const row2 = document.createElement('div');
+            row2.className = 'flex overflow-x-auto no-scrollbar gap-2 px-4 scroll-smooth';
+            
+            journalData.forEach((_, index) => {
+                const btn = document.createElement('button');
+                const dayNum = index + 1;
+                btn.id = `tab-btn-${index}`;
+                btn.className = `flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-200 border border-transparent hover:border-rose-300 focus:outline-none text-stone-600`;
+                btn.textContent = `${dayNum}`;
+                btn.onclick = () => { currentIndex = index; renderPage(index); };
+                if (index < 16) row1.appendChild(btn); else row2.appendChild(btn);
+            });
+            tabContainer.appendChild(row1);
+            tabContainer.appendChild(row2);
+        }
+
+        function updateTabs(index) {
+            document.querySelectorAll('[id^="tab-btn-"]').forEach(tab => {
+                tab.className = `flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-200 border border-transparent hover:bg-rose-100 text-stone-500`;
+            });
+            const activeTab = document.getElementById(`tab-btn-${index}`);
+            if (activeTab) {
+                activeTab.className = `flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-200 bg-rose-500 text-white shadow-md transform scale-105`;
+                activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+        }
+
+        function renderPage(index) {
+            const data = journalData[index];
+            document.getElementById('chapter-display').textContent = data.chapter;
+            document.getElementById('date-display').textContent = data.date;
+            document.getElementById('question-text').textContent = data.question;
+            document.getElementById('quote-text').textContent = data.quote;
+            document.getElementById('page-indicator').textContent = `${index + 1} / ${journalData.length}`;
+            document.getElementById('answer-input').value = userEntries[index] || "";
+            document.getElementById('char-count').textContent = (userEntries[index] || "").length;
+            
+            renderGallery(index);
+            
+            document.getElementById('btn-prev').disabled = index === 0;
+            document.getElementById('btn-next').disabled = index === journalData.length - 1;
+            updateTabs(index);
+        }
+
+        function renderGallery(index) {
+            const images = userImages[index] || [];
+            const list = document.getElementById('image-list');
+            const container = document.getElementById('image-gallery-container');
+            list.innerHTML = '';
+            
+            if (images.length > 0) {
+                container.classList.remove('hidden');
+                images.forEach((src, imgIdx) => {
+                    const item = document.createElement('div');
+                    item.className = 'image-item group';
+                    item.innerHTML = `<img src="${src}"><button type="button" onclick="removeImage('${imgIdx}', event)" class="remove-image-btn"><i data-lucide="x" class="w-3 h-3"></i></button>`;
+                    list.appendChild(item);
+                });
+                lucide.createIcons();
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        // --- Interaction ---
+        function saveEntry() {
+            userEntries[currentIndex] = document.getElementById('answer-input').value;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(userEntries));
+            document.getElementById('char-count').textContent = userEntries[currentIndex].length;
+        }
+        function manualSave() {
+            saveEntry();
+            const t = document.getElementById('save-toast');
+            t.classList.remove('hidden', 'toast-show');
+            void t.offsetWidth; // trigger reflow
+            t.classList.add('toast-show');
+            setTimeout(() => t.classList.add('hidden'), 2500);
+        }
+        function prevPage() { if(currentIndex > 0) { currentIndex--; renderPage(currentIndex); } }
+        function nextPage() { if(currentIndex < journalData.length - 1) { currentIndex++; renderPage(currentIndex); } }
+        document.getElementById('answer-input').addEventListener('input', saveEntry);
+
+        // --- Images ---
+        async function handleImageUpload(e) {
+            const files = e.target.files;
+            if(!files.length) return;
+            if(!userImages[currentIndex]) userImages[currentIndex] = [];
+            
+            for(let file of files) {
+                if(!file.type.startsWith('image/')) continue;
+                try {
+                    const resized = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                            const img = new Image();
+                            img.src = ev.target.result;
+                            img.onload = () => {
+                                const cvs = document.createElement('canvas');
+                                let w=img.width, h=img.height;
+                                if(w>600) { h*=600/w; w=600; }
+                                cvs.width=w; cvs.height=h;
+                                cvs.getContext('2d').drawImage(img,0,0,w,h);
+                                resolve(cvs.toDataURL('image/jpeg', 0.6));
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                    userImages[currentIndex].push(resized);
+                } catch(err){}
+            }
+            localStorage.setItem(STORAGE_KEY_IMAGES, JSON.stringify(userImages));
+            renderGallery(currentIndex);
+            e.target.value = '';
+        }
+
+        function removeImage(idxStr, e) {
+            if(e) e.stopPropagation();
+            if(confirm("삭제하시겠습니까?")) {
+                const idx = parseInt(idxStr);
+                userImages[currentIndex].splice(idx, 1);
+                if(userImages[currentIndex].length===0) delete userImages[currentIndex];
+                localStorage.setItem(STORAGE_KEY_IMAGES, JSON.stringify(userImages));
+                renderGallery(currentIndex);
+            }
+        }
+
+        // --- Export ---
+        async function copyForGoogleDocs() {
+            const btn = document.getElementById('btn-export');
+            const originTxt = btn.innerHTML;
+            btn.innerHTML = '⌛ 복사 중...'; btn.disabled = true;
+            
+            // 내보내기 시에도 이미지가 아닌 예쁜 컬러 박스로 대체
+            let html = `<div style="font-family: Arial, sans-serif; line-height: 1.6; color:#4a3b32;">
+                <div style="text-align:center; margin-bottom:50px; background: linear-gradient(135deg, #fda4af, #fbcfe8); padding: 40px 20px; border-radius: 8px;">
+                    <div style="font-size: 12px; letter-spacing: 2px; color: #881337; margin-bottom: 5px;">REBOOT NOTE</div>
+                    <h1 style="font-size:28pt; margin:0; color:#4c0519; font-family: 'Nanum Myeongjo', serif;">3월의 기록</h1>
+                    <div style="width: 40px; height: 2px; background: rgba(136, 19, 55, 0.3); margin: 15px auto;"></div>
+                    <p style="font-size:14pt; color:#881337; margin:0;">내 삶의 큐레이터</p>
+                </div><hr style="border:0; border-top:1px solid #eadddd; margin-bottom:40px;">`;
+            
+            journalData.forEach((d, i) => {
+                const ent = userEntries[i] || "";
+                const imgs = userImages[i] || [];
+                let iHtml = "";
+                imgs.forEach(s => iHtml += `<img src="${s}" style="max-width:100%; max-height:300px; border-radius:8px; margin:5px;"><br>`);
+                html += `<div style="margin-bottom:40px; border-bottom:2px solid #fdf8f5; padding-bottom:15px;">
+                    <strong style="font-size:14pt;">${d.date}</strong><span style="color:#d4a5a5; margin-left:10px;">Day ${i+1}</span>
+                    <h3 style="font-size:12pt; margin:10px 0;">Q. ${d.question}</h3>
+                    <div style="text-align:center;">${iHtml}</div>
+                    <div style="background:#fffaf8; padding:15px; border-radius:8px;">${ent.replace(/\n/g, '<br>')}</div>
+                </div>`;
+            });
+            html += `</div>`;
+
+            document.getElementById('manual-copy-area').innerHTML = html;
+            document.getElementById('export-overlay').style.display = 'flex';
+            
+            setTimeout(() => {
+                selectAllManual();
+                try { document.execCommand('copy'); } catch(e){}
+                lucide.createIcons();
+                btn.innerHTML = originTxt; btn.disabled = false;
+            }, 300);
+        }
+
+        function selectAllManual() {
+            const el = document.getElementById('manual-copy-area');
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const sel = window.getSelection();
+            sel.removeAllRanges(); sel.addRange(range);
+        }
+        function copyToClipboardManual() { selectAllManual(); document.execCommand('copy'); alert("복사되었습니다!"); }
+
+        // --- Share & Utils ---
+        async function shareCurrentCard() {
+            const btn = document.getElementById('share-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<span class="animate-spin">⌛</span>`;
+            btn.disabled = true;
+
+            const data = journalData[currentIndex];
+            const entry = userEntries[currentIndex] || "";
+            document.getElementById('share-header').textContent = data.chapter.toUpperCase();
+            document.getElementById('share-date').textContent = data.date;
+            document.getElementById('share-question').textContent = data.question;
+            document.getElementById('share-content').textContent = entry.substring(0, 500) || "(내용 없음)";
+            document.getElementById('share-quote').textContent = data.quote;
+            
+            const imgContainer = document.getElementById('share-image-container');
+            const userImgs = userImages[currentIndex] || [];
+            if(userImgs.length > 0) {
+                document.getElementById('share-image').src = userImgs[0];
+                imgContainer.style.display = 'block';
+            } else {
+                imgContainer.style.display = 'none';
+            }
+
+            try {
+                const canvas = await html2canvas(document.getElementById('share-card-template'), { 
+                    scale: 2, 
+                    useCORS: true, 
+                    backgroundColor: '#fffcfb',
+                    allowTaint: true 
+                });
+                document.getElementById('generated-share-image').src = canvas.toDataURL('image/png');
+                document.getElementById('share-overlay').style.display = 'flex';
+            } catch(e) { 
+                console.error(e);
+                alert("이미지 생성 중 오류가 발생했습니다."); 
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function downloadShareImage() {
+            const a = document.createElement('a');
+            a.download = `3월기록_${journalData[currentIndex].date.replace(/[^a-zA-Z0-9]/g, '')}.png`;
+            a.href = document.getElementById('generated-share-image').src;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function openSettings() { document.getElementById('settings-overlay').style.display = 'flex'; }
+        function closeOverlay(id) { document.getElementById(id).style.display = 'none'; }
+        function openGoogleDocs() { window.open('https://doc.new', '_blank'); closeOverlay('export-overlay'); }
+        
+        function backupData() {
+            const data = { entries: userEntries, images: userImages, date: new Date().toISOString() };
+            const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'march_backup.json';
+            a.click();
+            closeOverlay('settings-overlay');
+        }
+        function restoreData(e) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const parsed = JSON.parse(event.target.result);
+                if (parsed.entries) { userEntries = parsed.entries; localStorage.setItem(STORAGE_KEY, JSON.stringify(userEntries)); }
+                if (parsed.images) { userImages = parsed.images; localStorage.setItem(STORAGE_KEY_IMAGES, JSON.stringify(userImages)); }
+                renderPage(currentIndex);
+                alert("복구 완료!");
+                closeOverlay('settings-overlay');
+            };
+            reader.readAsText(e.target.files[0]);
+        }
+        function resetData() {
+            if(confirm("3월 데이터를 정말 삭제하시겠습니까?")) {
+                localStorage.removeItem(STORAGE_KEY);
+                localStorage.removeItem(STORAGE_KEY_IMAGES);
+                userEntries = {}; userImages = {};
+                renderPage(currentIndex);
+                alert("초기화 완료");
+                closeOverlay('settings-overlay');
+            }
+        }
+    </script>
+</body>
+</html>
